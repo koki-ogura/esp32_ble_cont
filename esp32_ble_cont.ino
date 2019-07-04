@@ -101,14 +101,35 @@ void uart_writes(const void* data, int size)
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
-xSemaphoreHandle ble_mux;
-std::queue<std::string> ble_msg_queue;
+xSemaphoreHandle ble_mux, ble_mux_sub;
+std::queue<std::string> ble_msg_queue, ble_msg_queue_sub;
+
+static void ble_msg_task(void *pvParameters)
+{
+  // this function will be called in CALLBACK function. so tricky !!!
+  while (true) {
+    if (xSemaphoreTake(ble_mux_sub, (portTickType)10) == pdTRUE) {
+      if (ble_msg_queue_sub.size() > 0) {
+        if (xSemaphoreTake(ble_mux, (portTickType)10) == pdTRUE) {
+          while (ble_msg_queue_sub.size() > 0) {
+            ble_msg_queue.push(ble_msg_queue_sub.front());
+            ble_msg_queue_sub.pop();
+            delay(1);
+          }
+          xSemaphoreGive(ble_mux);
+        }
+      }
+      xSemaphoreGive(ble_mux_sub);
+    }
+    delay(1);
+  }
+}
 
 void push_ble_msg(std::string str)
 {
-  xSemaphoreTake(ble_mux, portMAX_DELAY);
-  ble_msg_queue.push(str);
-  xSemaphoreGive(ble_mux);
+  xSemaphoreTake(ble_mux_sub, portMAX_DELAY);
+  ble_msg_queue_sub.push(str);
+  xSemaphoreGive(ble_mux_sub);
 }
 
 std::string pop_ble_msg()
@@ -159,6 +180,7 @@ class MyBLECharacteristicCallbacks: public BLECharacteristicCallbacks {
 void setup_ble()
 {
   ble_mux = xSemaphoreCreateMutex();
+  ble_mux_sub = xSemaphoreCreateMutex();
   BLEDevice::init(DEVICE_NAME);
   BLEDevice::setPower(ESP_PWR_LVL_P7);
   pServer = BLEDevice::createServer();
@@ -177,6 +199,7 @@ void setup_ble()
   BLEAdvertising* advertising = pServer->getAdvertising();
   advertising->addServiceUUID(SERVICE_UUID);
   advertising->start();
+  xTaskCreatePinnedToCore(ble_msg_task, "ble_msg_task", 10000, NULL, 2, NULL, 0);
 }
 
 //-----------------------------------------------------------------------------------
