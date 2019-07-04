@@ -21,9 +21,10 @@ const char APP_VERSION[] = "2019.07.03.01";
 
 //-----------------------------------------------------------------------------------
 #define EX_UART_NUM UART_NUM_0
-#define BUF_SIZE (256)
-static QueueHandle_t uart0_queue;
-uint8_t* uart_data = (uint8_t*)malloc(BUF_SIZE);
+//#define BUF_SIZE (256)
+#define BUF_SIZE (512)
+//static QueueHandle_t uart0_queue;
+//uint8_t* uart_data = (uint8_t*)malloc(BUF_SIZE);
 uart_config_t uart_config = {
     .baud_rate = 115200,
     .data_bits = UART_DATA_8_BITS,
@@ -32,10 +33,11 @@ uart_config_t uart_config = {
     .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
 };
 
+/*
 static void uart_event_task(void *pvParameters)
 {
   uart_event_t event;
-  uint8_t* dtmp = (uint8_t*)malloc(BUF_SIZE);
+  //uint8_t* dtmp = (uint8_t*)malloc(BUF_SIZE);
  
   while (1) {
     if (xQueueReceive(uart0_queue, (void*)&event, (portTickType)portMAX_DELAY)) {
@@ -61,18 +63,20 @@ static void uart_event_task(void *pvParameters)
       }
     }
   }
-  free(dtmp);
-  dtmp = NULL;
+  //free(dtmp);
+  //dtmp = NULL;
   vTaskDelete(NULL);
 }
+*/
 
 void uart_setup()
 {
   uart_param_config(EX_UART_NUM, &uart_config);
   uart_set_pin(EX_UART_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-  uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 10, &uart0_queue, 0);
-  uart_enable_pattern_det_intr(EX_UART_NUM, '+', 3, 10000, 10, 10);
-  xTaskCreatePinnedToCore(uart_event_task, "uart_event_task", 10000, NULL, 1, NULL, 0);
+  //uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 10, &uart0_queue, 0);
+  uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 0, NULL, 0);
+  //uart_enable_pattern_det_intr(EX_UART_NUM, '+', 3, 10000, 10, 10);
+  //xTaskCreatePinnedToCore(uart_event_task, "uart_event_task", 10000, NULL, 1, NULL, 0);
 }
 
 int uart_reads(void* buf, int max_size = BUF_SIZE)
@@ -234,6 +238,9 @@ void loop()
         }
         command[index] = c;
         if (++index == 255) break;
+    }
+    else {
+      delay(1);
     }
   }
   command[index] = 0;
