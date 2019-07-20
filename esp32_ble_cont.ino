@@ -154,7 +154,16 @@ void clr_ble_msg()
 }
 
 class MyBLEServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
+    void onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t* param) {
+      esp_ble_conn_update_params_t conn_params = {0};
+      memcpy(conn_params.bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
+      conn_params.latency = 0;
+      conn_params.max_int = 0x20;    // max_int = 0x20*1.25ms = 40ms
+      conn_params.min_int = 0x10;    // min_int = 0x10*1.25ms = 20ms
+      conn_params.timeout = 400;     // timeout = 400*10ms = 4000ms
+      //start sent the update connection parameters to the peer device.
+      esp_ble_gap_update_conn_params(&conn_params);
+
       deviceConnected = true;
       digitalWrite(CONNECT_LED, HIGH);
       // printf("ble connected\n");
