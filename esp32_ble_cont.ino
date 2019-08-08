@@ -16,9 +16,9 @@
 const char APP_VERSION[] = "2019.08.08.01";
 
 //-----------------------------------------------------------------------------------
-#define DEVICE_NAME         "HR-1"
-#define SERVICE_UUID        "082E82AF-450D-4EA4-95FA-F0383A86377F"
-#define CHARACTERISTIC_UUID "DB5A95D9-D347-4A9F-8348-89CF8E396C13"
+#define DEVICE_NAME         "ROBOT-1"
+#define SERVICE_UUID        "74829A60-9471-4804-AD29-9497AD731EC9"
+#define CHARACTERISTIC_UUID "1C05C777-D455-4194-8196-F176E656A90F"
 #define CONNECT_LED (2)
 
 //-----------------------------------------------------------------------------------
@@ -143,17 +143,21 @@ class MyBLECharacteristicCallbacks: public BLECharacteristicCallbacks {
   }
 };
 
+String device_name;
+String service_uuid;
+String charact_uuid;
+
 void setup_ble()
 {
   ble_mux = xSemaphoreCreateMutex();
   ble_mux_sub = xSemaphoreCreateMutex();
-  BLEDevice::init(DEVICE_NAME);
+  BLEDevice::init(device_name.c_str());
   BLEDevice::setPower(ESP_PWR_LVL_P7);
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyBLEServerCallbacks());
-  BLEService *pService = pServer->createService(SERVICE_UUID);
+  BLEService *pService = pServer->createService(service_uuid.c_str());
   pCharacteristic = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID,
+                      charact_uuid.c_str(),
                       //BLECharacteristic::PROPERTY_READ |
                       BLECharacteristic::PROPERTY_WRITE_NR |
                       BLECharacteristic::PROPERTY_NOTIFY
@@ -162,14 +166,13 @@ void setup_ble()
   pCharacteristic->setCallbacks(new MyBLECharacteristicCallbacks());
   pService->start();
   BLEAdvertising* advertising = pServer->getAdvertising();
-  advertising->addServiceUUID(SERVICE_UUID);
+  advertising->addServiceUUID(service_uuid.c_str());
   advertising->start();
   xTaskCreatePinnedToCore(ble_msg_task, "ble_msg_task", 10000, NULL, 2, NULL, 0);
 }
 
 //-----------------------------------------------------------------------------------
 Preferences preferences;
-bool echo_on = false;
 
 void setup()
 {
@@ -191,7 +194,9 @@ void setup()
 
   // Preferences maximum key length is 15
   preferences.begin("esp32-ble-cont");
-  echo_on = preferences.getBool("echo_on", true);
+  device_name = preferences.getString("device_name", DEVICE_NAME);
+  service_uuid = preferences.getString("service_uuid", SERVICE_UUID);
+  charact_uuid = preferences.getString("charact_uuid", CHARACTERISTIC_UUID);  
 
   // ble
   setup_ble();
@@ -207,23 +212,19 @@ void loop()
     int n = uart_reads(&c, 1);
     if (n > 0) {
         if (c == '\r' || c == '\n' || c == 0) {
-          if (echo_on) printf("\n");
+          printf("\n");
           break;
         }
         if (c == '\b' || c == 0x7f) {
           if (index > 0) {
-            if (echo_on) {
-              printf("\b \b");
-              fflush(stdout);
-            }
+            printf("\b \b");
+            fflush(stdout);
             index--;
           }
           continue;
         }
-        if (echo_on) {
-          printf("%c", c);
-          fflush(stdout);
-        }
+        printf("%c", c);
+        fflush(stdout);
         command[index] = c;
         if (++index == 255) break;
     }
@@ -236,30 +237,56 @@ void loop()
   char cmd[256] = {0};
   int32_t val = 0;
   int c = sscanf(command, "%s %d", cmd, &val);
-  if (!strcmp(cmd, "echo")) {
+
+  if (!strcmp(cmd, "restart")) {
+    delay(100);
+    ESP.restart();
+    while (true);
+  }
+
+  else if (!strcmp(cmd, "device_name")) {
     char s[256];
     int c = sscanf(command, "%s %s", cmd, s);
     if (c == 1) {
-      printf("echo : %s\n", echo_on ? "on" : "off");
-    }
-    else if (!strcmp(s, "on")) {
-      echo_on = true;
-      preferences.putBool("echo_on", echo_on);
-    }
-    else if (!strcmp(s, "off")) {
-      echo_on = false;
-      preferences.putBool("echo_on", echo_on);
+      printf("device_name : %s\n", device_name.c_str());
     }
     else {
-      printf("invalid param: %s\n", s);
+      device_name = s;
+      preferences.putString("device_name", device_name);
+    }
+  }
+  else if (!strcmp(cmd, "service_uuid")) {
+    char s[256];
+    int c = sscanf(command, "%s %s", cmd, s);
+    if (c == 1) {
+      printf("service_uuid : %s\n", service_uuid.c_str());
+    }
+    else {
+      service_uuid = s;
+      preferences.putString("service_uuid", service_uuid);
+    }
+  }
+  else if (!strcmp(cmd, "charact_uuid")) {
+    char s[256];
+    int c = sscanf(command, "%s %s", cmd, s);
+    if (c == 1) {
+      printf("charact_uuid : %s\n", charact_uuid.c_str());
+    }
+    else {
+      charact_uuid = s;
+      preferences.putString("charact_uuid", charact_uuid);
     }
   }
 
   else if (!strcmp(cmd, "show")) {
-    printf("version : %s\n", APP_VERSION);
-    printf("ble : %s\n", deviceConnected ? "connected" : "disconnected");
+    printf("     version : %s\n", APP_VERSION);
+    printf(" device_name : %s\n", device_name.c_str());
+    printf("service_uuid : %s\n", service_uuid.c_str());
+    printf("charact_uuid : %s\n", charact_uuid.c_str());
+    printf("         ble : %s\n", deviceConnected ? "connected" : "disconnected");
     delay(1);
   }
+
   else if (!strcmp(cmd, "ble")) {
     char s[256];
     int c = sscanf(command, "%s %s", cmd, s);
@@ -281,11 +308,14 @@ void loop()
   else {
     printf("commands:\n");
     printf("setting:\n");
-    printf("    echo [on|off]\n");
+    printf("    restart ... to reflect the params\n");
     printf("params:\n");
-    printf("    show\n");
+    printf("    show ... show current params\n");
+    printf("    device_name [name] ... show/change device name\n");
+    printf("    service_uuid [uuid] ... show/change service uuid\n");
+    printf("    charact_uuid [uuid] ... show/change characteristic uuid\n");
     printf("ble:\n");
-    printf("    status ... connected/disconnected\n");
+    printf("    status ... show ble status, connected/disconnected\n");
     printf("    ble ... pop message\n");
     printf("    ble strings ... push message\n");
   }
