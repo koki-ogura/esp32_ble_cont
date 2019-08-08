@@ -1,17 +1,19 @@
+//-------------------------------------------------------------------------------------------
+// 2019/08/08 rewrite for publish
+//-------------------------------------------------------------------------------------------
 #include <stdio.h>
 #include <Preferences.h>
 #include "driver/uart.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "freertos/ringbuf.h"
-//#include "EasyBLE2.h"
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
 #include <queue>
 
-const char APP_VERSION[] = "2019.07.03.01";
+const char APP_VERSION[] = "2019.08.08.01";
 
 //-----------------------------------------------------------------------------------
 #define DEVICE_NAME         "HR-1"
@@ -21,10 +23,8 @@ const char APP_VERSION[] = "2019.07.03.01";
 
 //-----------------------------------------------------------------------------------
 #define EX_UART_NUM UART_NUM_0
-//#define BUF_SIZE (256)
 #define BUF_SIZE (512)
-//static QueueHandle_t uart0_queue;
-//uint8_t* uart_data = (uint8_t*)malloc(BUF_SIZE);
+
 uart_config_t uart_config = {
     .baud_rate = 115200,
     .data_bits = UART_DATA_8_BITS,
@@ -33,50 +33,11 @@ uart_config_t uart_config = {
     .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
 };
 
-/*
-static void uart_event_task(void *pvParameters)
-{
-  uart_event_t event;
-  //uint8_t* dtmp = (uint8_t*)malloc(BUF_SIZE);
- 
-  while (1) {
-    if (xQueueReceive(uart0_queue, (void*)&event, (portTickType)portMAX_DELAY)) {
-      switch (event.type) {
-      case UART_DATA:
-        break;
-      case UART_FIFO_OVF:
-        uart_flush(EX_UART_NUM);
-        break;
-      case UART_BUFFER_FULL:
-        uart_flush(EX_UART_NUM);
-        break;
-      case UART_BREAK:
-        break;
-      case UART_PARITY_ERR:
-        break;
-      case UART_FRAME_ERR:
-        break;
-      case UART_PATTERN_DET:
-        break;
-      default:
-        break;
-      }
-    }
-  }
-  //free(dtmp);
-  //dtmp = NULL;
-  vTaskDelete(NULL);
-}
-*/
-
 void uart_setup()
 {
   uart_param_config(EX_UART_NUM, &uart_config);
   uart_set_pin(EX_UART_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-  //uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 10, &uart0_queue, 0);
   uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 0, NULL, 0);
-  //uart_enable_pattern_det_intr(EX_UART_NUM, '+', 3, 10000, 10, 10);
-  //xTaskCreatePinnedToCore(uart_event_task, "uart_event_task", 10000, NULL, 1, NULL, 0);
 }
 
 int uart_reads(void* buf, int max_size = BUF_SIZE)
@@ -161,19 +122,16 @@ class MyBLEServerCallbacks: public BLEServerCallbacks {
       conn_params.max_int = 0x20;    // max_int = 0x20*1.25ms = 40ms
       conn_params.min_int = 0x10;    // min_int = 0x10*1.25ms = 20ms
       conn_params.timeout = 400;     // timeout = 400*10ms = 4000ms
-      //start sent the update connection parameters to the peer device.
       esp_ble_gap_update_conn_params(&conn_params);
 
       deviceConnected = true;
       digitalWrite(CONNECT_LED, HIGH);
-      // printf("ble connected\n");
       push_ble_msg("connected");
     };
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
       digitalWrite(CONNECT_LED, LOW);
-      //printf("ble disconnected\n");
       push_ble_msg("disconnected");
     }
 };
@@ -181,7 +139,6 @@ class MyBLEServerCallbacks: public BLEServerCallbacks {
 class MyBLECharacteristicCallbacks: public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
     std::string value = pCharacteristic->getValue();
-    //printf("ble %s\n", value.c_str());
     push_ble_msg(value);
   }
 };
@@ -203,7 +160,6 @@ void setup_ble()
                     );
   pCharacteristic->addDescriptor(new BLE2902());
   pCharacteristic->setCallbacks(new MyBLECharacteristicCallbacks());
-  //pCharacteristic->setValue("Hello World");
   pService->start();
   BLEAdvertising* advertising = pServer->getAdvertising();
   advertising->addServiceUUID(SERVICE_UUID);
