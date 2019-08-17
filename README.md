@@ -3,8 +3,10 @@ ble controller
 
 ![ESP32-DevKitC-32D and ESP-32S](https://github.com/koki-ogura/esp32_ble_cont/blob/master/esp32.jpeg)  
 left: ESP32-DevKitC-32D, right: ESP-32S  
+When using DevKit, connect the GPIO2 pin in the order of 1K resistor, LED, and GND. This is the BLE connection indicator. When using ESP-32S, the LED is on the board from the beginning.  
+As for the radio sensitivity, DevKit is better than ESP-32S.
 
-
+## log
 2019/08/08 rewrite for publish.  
 2019/07/08 resolve timeout problem.  
 2019/07/04 first commit.  
