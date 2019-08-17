@@ -16,7 +16,7 @@
 const char APP_VERSION[] = "2019.08.08.01";
 
 //-----------------------------------------------------------------------------------
-#define DEVICE_NAME         "ROBOT-1"
+#define DEVICE_NAME         "ROB-1"
 #define SERVICE_UUID        "74829A60-9471-4804-AD29-9497AD731EC9"
 #define CHARACTERISTIC_UUID "1C05C777-D455-4194-8196-F176E656A90F"
 #define CONNECT_LED (2)
@@ -249,6 +249,9 @@ void loop()
     int c = sscanf(command, "%s %s", cmd, s);
     if (c == 1) {
       printf("device_name : %s\n", device_name.c_str());
+    }
+    else if (strlen(s) > 5) {
+      printf("error: device_name's max char length is 5.\n");
     }
     else {
       device_name = s;
