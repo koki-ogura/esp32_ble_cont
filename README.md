@@ -1,7 +1,7 @@
 # esp32_ble_cont
 ble controller  
 
-![ESP32-DevKitC-32D and ESP-32S](https://github.com/koki-ogura/esp32_ble_cont/blob/master/esp32.jpeg)
+![ESP32-DevKitC-32D and ESP-32S](https://github.com/koki-ogura/esp32_ble_cont/blob/master/esp32.jpeg)  
 left: ESP32-DevKitC-32D, right: ESP-32S  
 
 
