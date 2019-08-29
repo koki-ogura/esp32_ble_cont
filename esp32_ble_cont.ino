@@ -13,7 +13,7 @@
 #include <BLE2902.h>
 #include <queue>
 
-const char APP_VERSION[] = "2019.08.08.01";
+const char APP_VERSION[] = "2019.08.29.01";
 
 //-----------------------------------------------------------------------------------
 #define DEVICE_NAME         "ROB-1"
@@ -72,17 +72,14 @@ static void ble_msg_task(void *pvParameters)
     if (xSemaphoreTake(ble_mux_sub, (portTickType)10) == pdTRUE) {
       if (ble_msg_queue_sub.size() > 0) {
         if (xSemaphoreTake(ble_mux, (portTickType)10) == pdTRUE) {
-          while (ble_msg_queue_sub.size() > 0) {
-            ble_msg_queue.push(ble_msg_queue_sub.front());
-            ble_msg_queue_sub.pop();
-            delay(1);
-          }
+          ble_msg_queue.push(ble_msg_queue_sub.front());
+          ble_msg_queue_sub.pop();
           xSemaphoreGive(ble_mux);
         }
       }
       xSemaphoreGive(ble_mux_sub);
     }
-    delay(1);
+    delay(10);
   }
 }
 
@@ -168,7 +165,7 @@ void setup_ble()
   BLEAdvertising* advertising = pServer->getAdvertising();
   advertising->addServiceUUID(service_uuid.c_str());
   advertising->start();
-  xTaskCreatePinnedToCore(ble_msg_task, "ble_msg_task", 10000, NULL, 2, NULL, 0);
+  xTaskCreatePinnedToCore(ble_msg_task, "ble_msg_task", 4096*4, NULL, 1, NULL, xPortGetCoreID());
 }
 
 //-----------------------------------------------------------------------------------
