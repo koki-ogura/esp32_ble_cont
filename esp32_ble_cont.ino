@@ -23,7 +23,7 @@ const char APP_VERSION[] = "2019.08.29.01";
 
 //-----------------------------------------------------------------------------------
 #define EX_UART_NUM UART_NUM_0
-#define BUF_SIZE (1024)
+#define BUF_SIZE (256)
 
 uart_config_t uart_config = {
     .baud_rate = 115200,
@@ -165,7 +165,7 @@ void setup_ble()
   BLEAdvertising* advertising = pServer->getAdvertising();
   advertising->addServiceUUID(service_uuid.c_str());
   advertising->start();
-  xTaskCreatePinnedToCore(ble_msg_task, "ble_msg_task", 4096*2, NULL, 1, NULL, xPortGetCoreID());
+  xTaskCreatePinnedToCore(ble_msg_task, "ble_msg_task", 2048*1, NULL, 1, NULL, xPortGetCoreID());
 }
 
 //-----------------------------------------------------------------------------------
