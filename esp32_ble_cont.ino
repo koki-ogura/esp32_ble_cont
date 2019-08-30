@@ -1,4 +1,5 @@
 //-------------------------------------------------------------------------------------------
+// 2019/08/30 remove ble_msg_task
 // 2019/08/08 rewrite for publish
 //-------------------------------------------------------------------------------------------
 #include <stdio.h>
@@ -13,7 +14,7 @@
 #include <BLE2902.h>
 #include <queue>
 
-const char APP_VERSION[] = "2019.08.29.01";
+const char APP_VERSION[] = "2019.08.30.01";
 
 //-----------------------------------------------------------------------------------
 #define DEVICE_NAME         "ROB-1"
@@ -62,53 +63,35 @@ void uart_writes(const void* data, int size)
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
-xSemaphoreHandle ble_mux, ble_mux_sub;
-std::queue<std::string> ble_msg_queue, ble_msg_queue_sub;
-
-static void ble_msg_task(void *pvParameters)
-{
-  // this function will be called in CALLBACK function. so tricky !!!
-  while (true) {
-    if (xSemaphoreTake(ble_mux_sub, (portTickType)10) == pdTRUE) {
-      if (ble_msg_queue_sub.size() > 0) {
-        if (xSemaphoreTake(ble_mux, (portTickType)10) == pdTRUE) {
-          ble_msg_queue.push(ble_msg_queue_sub.front());
-          ble_msg_queue_sub.pop();
-          xSemaphoreGive(ble_mux);
-        }
-      }
-      xSemaphoreGive(ble_mux_sub);
-    }
-    delay(10);
-  }
-}
+xSemaphoreHandle ble_sem;
+std::queue<std::string> ble_msg_queue;
 
 void push_ble_msg(std::string str)
 {
-  xSemaphoreTake(ble_mux_sub, portMAX_DELAY);
-  ble_msg_queue_sub.push(str);
-  xSemaphoreGive(ble_mux_sub);
+  xSemaphoreTake(ble_sem, portMAX_DELAY);
+  ble_msg_queue.push(str);
+  xSemaphoreGive(ble_sem);
 }
 
 std::string pop_ble_msg()
 {
   std::string str = "";
-  xSemaphoreTake(ble_mux, portMAX_DELAY);
+  xSemaphoreTake(ble_sem, portMAX_DELAY);
   if (ble_msg_queue.size() > 0) {
     str = ble_msg_queue.front();
     ble_msg_queue.pop();
   }
-  xSemaphoreGive(ble_mux);
+  xSemaphoreGive(ble_sem);
   return str;
 }
 
 void clr_ble_msg()
 {
-  xSemaphoreTake(ble_mux, portMAX_DELAY);
+  xSemaphoreTake(ble_sem, portMAX_DELAY);
   while (ble_msg_queue.size() > 8) {
     ble_msg_queue.pop();
   }
-  xSemaphoreGive(ble_mux);
+  xSemaphoreGive(ble_sem);
 }
 
 class MyBLEServerCallbacks: public BLEServerCallbacks {
@@ -146,8 +129,7 @@ String charact_uuid;
 
 void setup_ble()
 {
-  ble_mux = xSemaphoreCreateMutex();
-  ble_mux_sub = xSemaphoreCreateMutex();
+  vSemaphoreCreateBinary(ble_sem);
   BLEDevice::init(device_name.c_str());
   BLEDevice::setPower(ESP_PWR_LVL_P7);
   pServer = BLEDevice::createServer();
@@ -165,7 +147,6 @@ void setup_ble()
   BLEAdvertising* advertising = pServer->getAdvertising();
   advertising->addServiceUUID(service_uuid.c_str());
   advertising->start();
-  xTaskCreatePinnedToCore(ble_msg_task, "ble_msg_task", 2048*1, NULL, 1, NULL, xPortGetCoreID());
 }
 
 //-----------------------------------------------------------------------------------
