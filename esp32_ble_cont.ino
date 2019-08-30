@@ -98,7 +98,7 @@ class MyBLEServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t* param) {
       esp_ble_conn_update_params_t conn_params = {0};
       memcpy(conn_params.bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
-      conn_params.latency = 0;
+      conn_params.latency = 10;
       conn_params.max_int = 0x20;    // max_int = 0x20*1.25ms = 40ms
       conn_params.min_int = 0x10;    // min_int = 0x10*1.25ms = 20ms
       conn_params.timeout = 400;     // timeout = 400*10ms = 4000ms
@@ -127,7 +127,7 @@ String device_name;
 String service_uuid;
 String charact_uuid;
 
-void ble_task(void* params)
+void setup_ble()
 {
   vSemaphoreCreateBinary(ble_sem);
   BLEDevice::init(device_name.c_str());
@@ -147,12 +147,6 @@ void ble_task(void* params)
   BLEAdvertising* advertising = pServer->getAdvertising();
   advertising->addServiceUUID(service_uuid.c_str());
   advertising->start();
-  while (true) delay(1000);
-}
-
-void setup_ble()
-{
-  xTaskCreatePinnedToCore(ble_task, "ble_task", 1024*32, NULL, 2, NULL, 0);
 }
 
 //-----------------------------------------------------------------------------------
