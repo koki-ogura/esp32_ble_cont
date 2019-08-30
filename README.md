@@ -7,6 +7,7 @@ When using DevKit, connect the GPIO2 pin in the order of 1K resistor, LED, and G
 As for the radio sensitivity, DevKit is better than ESP-32S.
 
 ## log
+2019/08/30 append ble_task with core 0  
 2019/08/30 remove ble_msg_task.  
 2019/08/29 change ble_msg_task's priority and execute core.  
 2019/08/08 rewrite for publish.  

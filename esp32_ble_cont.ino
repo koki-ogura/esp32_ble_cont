@@ -127,7 +127,7 @@ String device_name;
 String service_uuid;
 String charact_uuid;
 
-void setup_ble()
+void ble_task(void* params)
 {
   vSemaphoreCreateBinary(ble_sem);
   BLEDevice::init(device_name.c_str());
@@ -147,6 +147,12 @@ void setup_ble()
   BLEAdvertising* advertising = pServer->getAdvertising();
   advertising->addServiceUUID(service_uuid.c_str());
   advertising->start();
+  while (true) delay(1000);
+}
+
+void setup_ble()
+{
+  xTaskCreatePinnedToCore(ble_task, "ble_task", 1024*32, NULL, 2, NULL, 0);
 }
 
 //-----------------------------------------------------------------------------------
